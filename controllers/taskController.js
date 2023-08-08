@@ -123,7 +123,7 @@ exports.newTask=async(req,res)=>{
 }
 exports.getAllTasks= async(req,res)=>{
     try {
-        const checkAvailableTasks= await taskModel.findOne({Task})
+        const checkAvailableTasks= await taskModel.find()
     if(!checkAvailableTasks){
         return res.status(404).json({
             message:"there are no available tasks"
