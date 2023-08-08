@@ -190,3 +190,29 @@ exports.updateTask= async(req,res)=>{
 
     }
 }
+exports.deleteTask =async(req,res)=>{
+    try {
+        const writerId = req.params.id
+        const taskId =req.params.taskId
+        const getWriter = await writerModel.findById(writerId)
+        const deleteTask = await writerModel.findByIdAndDelete(taskId,(req.body))
+        if(!deleteTask){
+            return res.status(400).json({
+                message:"cannot delete"
+            })
+        }else{
+            return res.status(200).json({
+                message:"task deleted successfully",
+                data:deleteTask
+            })
+        }
+
+
+        
+    } catch (error) {
+        return res.status(500).json({
+            message:error.message
+        })
+
+    }
+}
