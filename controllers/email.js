@@ -22,9 +22,9 @@ const sendEmail = async (options) => {
   async function main() {
     const info = await transporter.sendMail({
       from: process.env.username,
-      to: options.Email,
+      to: options.email,
       subject: options.subject,
-      text: options.message,
+      text: options.text,
     });
 
     console.log("Message sent: %s", info.messageId);
@@ -34,4 +34,4 @@ const sendEmail = async (options) => {
 
 
 
-module.exports =sendEmail;
+module.exports ={sendEmail};

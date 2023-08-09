@@ -5,192 +5,67 @@ const editorModel = require("../models/editorModel");
 const bcrypt = require("bcrypt");
 const jwt = require('jsonwebtoken');
 const nodemailer = require('nodemailer');
-const cloudinary = require('../utils/cloudinary');
-const validator = require('../middleware/editorValidation')
+// const cloudinary = require('../utils/cloudinary');
+// const validator = require('../middleware/editorValidation');
+// const { default: isEmail } = require("validator/lib/isEmail");
+
 
 // create a mailing function
 
-const transporter = nodemailer.createTransport({
-    service: process.env.service,
-    auth: {
-      user: process.env.user,
-      pass: process.env.password
-    }
-  });
-
-// SignUp
-const signUp = async ( req, res ) => {
-    try {
-        
-        const { FirstName, Surname, UserName, Email, Password, CompanyName } = req.body;
-        // if(FirstName==0||Surname==0||UserName==0||Email==0||Password==0||CompanyName==0){
-        //   return "this field cnt be empty"
-        // }else{
-        //   return "success"
-        // }
-        
-    const validation = validator(Email, FirstName, Surname);
-    if (!validation.isValid) {
-      return res.status(400).json({
-        message: validation.message
-      });
-    }
-
-        // check if username exists
-        const UsernameExists = await editorModel.findOne({ UserName })
-        if(UsernameExists){
-            res.status( 400 ).json( {
-                message: `user with this username: ${UserName} already exist.`
-            })
-        }
-        // check if the entry email exist
-        const isEmail = await editorModel.findOne( { Email: Email.toLowerCase() } );
-        if ( isEmail ) {
-            res.status( 400 ).json( {
-                message: `user with this email: ${Email} already exist.`
-            })
-        } else {
-            // salt the password using bcrypt
-            const saltedRound = await bcrypt.genSalt( 10 );
-            // hash the salted password using bcryptE
-            const hashedPassword = await bcrypt.hash( Password, saltedRound );
-
-            // const enter = await cloudinary.uploader.upload(req.file.path)
-
-            // create an editor
-            const user = new editorModel( {
-                FirstName: FirstName.toUpperCase(),
-                Surname: Surname.toUpperCase(),
-                UserName,
-                Email: Email.toLowerCase(),
-                Password: hashedPassword,
-                CompanyName,
-                // ProfileImage
-
-            } );
-
-            // create a token
-            const token = jwt.sign({
-                id: user._id,
-                Password: user.Password,
-                Email: user.Email,
-                isVerified: user.isVerified,
-                UserName: user.UserName
-            },
-    
-                process.env.secretKey, { expiresIn: "5 days" },
-            );
-            
-            // send verification email
-            const baseUrl = process.env.BASE_URL
-            const mailOptions = {
-                from: process.env.user,
-                to: Email,
-                subject: "Verify your account",
-              html: `Please click on the link to verify your email: <a href="${req.protocol}://${req.get("host")}/api/users/verify-email/${token}">Verify Email</a>`,
-            };
-
-            await transporter.sendMail( mailOptions );
-
-            // save the user
-            
-             user.token = token
-             user.isAdmin = true
-             const savedUser = await user.save();
-
-          
-            // return a response
-            res.status( 201 ).json( {
-            message: `Check your email: ${savedUser.Email.toLowerCase()} to verify your account.`,
-            data: savedUser,
-          //  token
-        })
-        }
-    } catch (error) {
-        res.status( 500 ).json( {
-            message: error.message
-        })
-    }
-};
-
-// verify email
-const verifyEmail = async (req, res) => {
-    try {
-      const { token } = req.params;
-      console.log(token);
-  
-      // Verify the token
-      const { Email } = jwt.verify(token, process.env.secretKey);
-      console.log(Email);
-  
-      // Find the editor based on the email
-      const editor = await editorModel.findOne({ Email: Email.toLowerCase() });
-      console.log(editor);
-  
-      // Check if editor exists
-      if (!editor) {
-        return res.status(404).json({
-          message: "Editor not found. Invalid or expired token.",
-        });
+const signup = async(req,res)=>{
+  try {
+      const {UserName,Email,Password,CompanyName,FirstName,Surname,}= req.body
+      // hashing password
+      const salt =bcrypt.genSaltSync(10)
+      const hash = bcrypt.hashSync(Password,salt)
+      // console.log(req.file)
+      
+      const data ={
+          UserName,
+          Email,
+          Password:hash,
+          CompanyName,
+          FirstName,
+          Surname,
+          // profilePic:req.file.path
       }
+      if(!UserName||!Email||!Password||CompanyName||!FirstName||!Surname){
+          return "field cant be empty"
+      }else{
+        const createUser =await new editorModel(data)
+        // generate the token
   
-      // Update the user verification
-      editor.isVerified = true;
-  
-      // Save the changes
-      await editor.save();
-  
-      res.status(200).json({
-        message: "Editor verified successfully",
-        data: editor,
-      });
-    } catch (error) {
-      res.status(500).json({
-        message: error.message,
-      });
-    }
-  };
-  
-  
-
-// resend verification
-const resendVerificationEmail = async (req, res) => {
-    try {
-        // get user email from request body
-        const { Email } = req.body;
-
-        // find editor
-        const editor = await editorModel.findOne( { Email: Email.toLowerCase()} );
-        if ( !editor ) {
-            return res.status( 404 ).json( {
-                error: "Editor not found"
-            } );
-        }
-
-        // create a token
-            const token = await jwt.sign( { Email: Email.toLowerCase() }, process.env.secretKey, { expiresIn: "50m" } );
-            
-             // send verification email
-             const baseUrl = process.env.BASE_URL
-            const mailOptions = {
-                from: process.env.user,
-                to: Email,
-                subject: "Verify your account",
-                html: `Please click on the link to verify your email: <a href="${req.protocol}://${req.get("host")}/api/users/verify-email/${token}">Verify Email</a>`,
-            };
-
-
-            await transporter.sendMail( mailOptions );
-
-        res.status( 200 ).json( {
-            message: `Verification email sent successfully to your email: ${editor.Email}`
-        } );
-
-    } catch ( error ) {
-        res.status( 500 ).json( {
-            message: error.message
+        const newToken = jwt.sign({
+            UserName,
+            Password
+        },process.env.JWT_TOKEN,{expiresIn: "1d"})
+        createUser.token = newToken
+        const subject ="KINDLY VERIFY BRO"
+        const link =`${req.protocol}: //${req.get("host")}/userverify${createUser._id}/${newToken}`
+        const text =`click on this link${link} to verify, kindly note that this link will expire after 5 minutes`
+        mailsender(
+            {
+                from:"gmail",
+                email:createUser.Email,
+                subject:`kindly verify`,
+                text:link
+            }
+        )
+        await createUser.save()
+        res.status(200).json({
+            message:"created",
+            data:createUser
         })
-    }
+  
+
+      }
+  } catch (error) {
+      res.status(500).json({
+          message:error.message
+      })
+      
+  }
+
 }
 
 //login function
@@ -487,10 +362,10 @@ const UpdateEditor = async(req, res ) => {
         }
 
   const editorData = {
-    FirstName: FirstName || updatedEditor.FirstName,
-    UserName: UserName || updatedEditor.UserName,
-    Surname: Surname || updatedEditor.Surname,
-    Email: Email || updatedEditor.Email,
+    FirstName,
+    UserName,
+    Surname,
+    Email,
     ProfileImage: updatedEditor.ProfileImage,
     PublicId: updatedEditor.PublicId,
   };
@@ -518,10 +393,10 @@ const UpdateEditor = async(req, res ) => {
 // export the function
 
 module.exports = {
-    signUp,
+  signup,
     userLogin,
-    verifyEmail,
-    resendVerificationEmail,
+    // verifyEmail,
+    // resendVerificationEmail,
     signOut,
     forgotPassword,
     resetPassword,

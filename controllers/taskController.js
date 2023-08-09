@@ -1,108 +1,46 @@
 const taskModel = require("../models/taskModel")
 const writerModel =require("../models/writerModel")
 const nodemailer=require("nodemailer")
-const sendmail=require("./email")
-
-
+const {sendEmail}=require("./email")
 
 exports.assignTask=async(req,res)=>{
     try {
-     
+       const {Title,Description}= req.body
         const writerId = req.params.id
-        const getWriterid = await writerModel.find({writerId})
+        const getWriterid = await writerModel.findById(writerId)
         console.log(getWriterid);
-        const data ={Email:req.body}
-        console.log(data);
-      
-        // const getWriterEmail =getWriterid.Email
-        // console.log(getWriterEmail);
-        
-       
-        if(!getWriterid){
-            return res.status(404).json({
-                message:"couldnt find any writer "
+        const data ={
+            editor: req.user._id,
+            writer:writerId,
+            Title,
+            Description
+        }
+        const taskCreate= await taskModel.create(data)
+        if(!taskCreate){
+            return res.status(400).json({
+                message:"cannot assign task"
             })
         }else{
-            const checked = await new writerModel(data)
-           
-              const subject ="KINDLY ACCEPT YOUR TASK"
-              const link =`${req.protocol}: //${req.get("host")}api/accept`
-              const message =`click on this link${link} to accept your task`
-              sendmail(
-                {
-                    from:"gmail",
-                    email:checked.Email,
-                    subject:`accecpt the task assigned`,
-                    message:link
+            console.log(getWriterid.Email);
+
+                const mailOptions = {
+                    // from: process.env.user,
+                    to: getWriterid.Email,
+                    subject: "Verify your account",
+                  text: `Please click on the link to verify your email: <a href="${req.protocol}://${req.get("host")}/api/accept">Accept Task</a>`,
                 }
-            )
-
-        await checked.save()
-              return res.status(200).json({
-                message:"task assigned succesfully",
-                data:getWriterid
-              })
-
+                sendEmail( mailOptions );
+                  return res.status(200).json({
+                    message:"task assigned succesfully",
+                    data:taskCreate
+                  })
         }
-        
-        
     } catch (error) {
        return res.status(500).json({
             message:error.message
         })
     }
 }
-
-
-// exports.acceptTask=async(req,res)=>{
-//     try {
-//         const Email = req.body
-//         const subject ="KINDLY VERIFY BRO"
-//         const link =`${req.protocol}: //${req.get("host")}/api/accepts`
-//         const message =`click on this link${link} to verify, kindly note that this link will expire after 5 minutes`
-        
-//         // const acceptTask =await new writerModel(data)
-//         mailsender(
-//             {
-//                 from:"gmail",
-//                 email:Email,
-//                 subject:`kindly verify`,
-//                 message:link
-//             }
-//         )
-        // await acceptTask.save()
-        // const startTime = await  setTimeout(() => {
-                // if(startTime.acceptTask <=setTimeout){
-                //     return res.status(200).json({
-                //         message:"task completed",
-                //         data:{isComplete:true}
-                //     })
-                // }else if(startTime.acceptTask > setTimeout){
-                //     return res.status(200).json({
-                //         message:"task pending",
-                //         data:{isPending:true}
-                //     })
-    
-//                 }else if(startTime.acceptTask == startTime){
-//                     return res.status(200).json({
-//                         message:"Active",
-//                         data:{isActive:true}
-//                     })
-//                 }
-                
-//             }, "2h");
-    
-          
-        
-//     } catch (error) {
-//         return res.status(500).json({
-//             message:error.message
-//         })
-//     }
-
-
-
-// }
 exports.newTask=async(req,res)=>{
     try {
         const newTask = await writerModel.findById(req.params.id)
@@ -198,17 +136,14 @@ exports.deleteTask =async(req,res)=>{
         const deleteTask = await writerModel.findByIdAndDelete(taskId,(req.body))
         if(!deleteTask){
             return res.status(400).json({
-                message:"cannot delete"
+                message:"cannot delete this task"
             })
         }else{
             return res.status(200).json({
                 message:"task deleted successfully",
                 data:deleteTask
             })
-        }
-
-
-        
+        }  
     } catch (error) {
         return res.status(500).json({
             message:error.message
