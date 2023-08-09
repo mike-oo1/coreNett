@@ -1,7 +1,8 @@
 const taskModel = require("../models/taskModel")
-const writerModel =require("../models/writerModel")
+const editorModel =require("../models/writerModel")
 const nodemailer=require("nodemailer")
 const {sendEmail}=require("./email")
+
 
 exports.assignTask=async(req,res)=>{
     try {
@@ -10,7 +11,7 @@ exports.assignTask=async(req,res)=>{
         const getWriterid = await writerModel.findById(writerId)
         console.log(getWriterid);
         const data ={
-            editor: req.user._id,
+            editor: req.userId._id,
             writer:writerId,
             Title,
             Description
@@ -41,11 +42,33 @@ exports.assignTask=async(req,res)=>{
         })
     }
 }
+
+// exports.statusTrack = async(req,res)=>{
+
+//     try {
+//         const timer =req.body.timer
+//             const timeModel =await taskModel.findByIdAndUpdate({isActive:true},{new:true})
+//            return setTimeout(() => {
+//                 res.status(200).json({
+//                     message:"youre active",
+//                     data:timeModel
+//                 })
+//             }, timer);
+
+//     } catch (error) {
+//         return res.status(500).json({
+//             message:error.message
+//         })
+//     }
+
+
+// }
+
 exports.newTask=async(req,res)=>{
     try {
-        const newTask = await writerModel.findById(req.params.id)
+        const newTask = await editorModel.findById(req.params.id)
         const Task= await taskModel.create(req.body)
-        Task.link =newTask
+        Task.editor =newTask
         Task.save()
         newTask.push(Task)
         return res.status(200).json({
@@ -84,11 +107,11 @@ exports.getOneTask = async(req,res)=>{
     try {
         const id = req.params.id
         const taskid=req.params.id
-        const findWriter =await writerModel.findById(id)
+        const findeditor =await editorModel.findById(id)
         const task = await taskModel.findById(taskid)
-        if(!findWriter){
+        if(!findeditor){
             return res.status(400).json({
-                message:"no writer found"
+                message:"no editor found"
             })
         }else{
             return res.status(200).json({
@@ -105,13 +128,13 @@ exports.getOneTask = async(req,res)=>{
 
 exports.updateTask= async(req,res)=>{
     try {
-        const writerId = req.params.id
+        const editorId = req.params.id
         const taskId =req.params.taskId
-        const getWriter = await writerModel.findById(writerId)
-        const updateTask = await writerModel.findByIdAndUpdate(taskId,(req.body),{new:true})
-        if(!getWriter){
+        const geteditor = await editorModel.findById(editorId)
+        const updateTask = await taskModel.findByIdAndUpdate(taskId,(req.body),{new:true})
+        if(!geteditor){
             return res.status(404).json({
-                message:"cannot find the writer with this id"
+                message:"cannot find the editor with this id"
             })
         }else if(updateTask ==0){
             const message ="you didnt update anything"
@@ -130,10 +153,10 @@ exports.updateTask= async(req,res)=>{
 }
 exports.deleteTask =async(req,res)=>{
     try {
-        const writerId = req.params.id
+        const editorId = req.params.id
         const taskId =req.params.taskId
-        const getWriter = await writerModel.findById(writerId)
-        const deleteTask = await writerModel.findByIdAndDelete(taskId,(req.body))
+        const geteditor = await editorModel.findById(editorId)
+        const deleteTask = await taskModel.findByIdAndDelete(taskId,(req.body))
         if(!deleteTask){
             return res.status(400).json({
                 message:"cannot delete this task"

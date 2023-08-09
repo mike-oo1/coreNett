@@ -6,6 +6,7 @@ const router = express.Router()
 const { signup, userLogin, signOut, changePassword, resetPassword, forgotPassword, UpdateEditor } = require('../controllers/editorController');
 const {getAllEditors, getOneEditor, } = require("../controllers/editorController")
 const upload = require("../utils/multer");
+const cloudinary =require("../utils/cloudinary")
 // const { authenticate } = require("../middleware/authentication");
 
 
