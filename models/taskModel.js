@@ -32,6 +32,10 @@ const TaskSchema = new mongoose.Schema({
     writer:{
         type: mongoose.SchemaTypes.ObjectId,
         ref: "Writers"
+},
+timer:{
+    type:Number,
+    default: null
 }
 }, 
 {

@@ -1,117 +1,106 @@
 const taskModel = require("../models/taskModel")
-const editorModel =require("../models/writerModel")
+const editorModel = require("../models/editorModel")
+const writerModel =require("../models/writerModel")
 const nodemailer=require("nodemailer")
 const {sendEmail}=require("./email")
 
-
-exports.assignTask=async(req,res)=>{
+ exports.createTask =  async (req, res) => {
     try {
-       const {Title,Description}= req.body
-        const writerId = req.params.id
-        const getWriterid = await writerModel.findById(writerId)
-        console.log(getWriterid);
-        const data ={
-            editor: req.userId._id,
-            writer:writerId,
-            Title,
-            Description
-        }
-        const taskCreate= await taskModel.create(data)
-        if(!taskCreate){
-            return res.status(400).json({
-                message:"cannot assign task"
+        const editorid = req.params.editorid
+        const writerId = req.params.writerId
+        const getEditor = await editorModel.findById(editorid)
+        const getWriter = await writerModel.findById(writerId)
+        if(!getEditor){
+            return res.status(404).json({
+                message: `no editor found with this ${id} `
             })
-        }else{
-            console.log(getWriterid.Email);
-
-                const mailOptions = {
-                    // from: process.env.user,
-                    to: getWriterid.Email,
-                    subject: "Verify your account",
-                  text: `Please click on the link to verify your email: <a href="${req.protocol}://${req.get("host")}/api/accept">Accept Task</a>`,
-                }
-                sendEmail( mailOptions );
-                  return res.status(200).json({
-                    message:"task assigned succesfully",
-                    data:taskCreate
-                  })
         }
-    } catch (error) {
-       return res.status(500).json({
-            message:error.message
+        if(!getWriter){
+            return res.status(404).json({
+                message: `no writer found with tis id ${writerId}`
+            })
+        }
+        const {Title,Description, timer} = req.body;
+        const createdTask = new taskModel({
+            Title,
+            Description,
+            editor: getEditor._id, 
+            writer: getWriterriter._id,
+            timer  
         })
-    }
-}
 
-// exports.statusTrack = async(req,res)=>{
+        getEditor.task.push(newTask.id)
+        getWriter.task.push(newTask.id)
 
-//     try {
-//         const timer =req.body.timer
-//             const timeModel =await taskModel.findByIdAndUpdate({isActive:true},{new:true})
-//            return setTimeout(() => {
-//                 res.status(200).json({
-//                     message:"youre active",
-//                     data:timeModel
-//                 })
-//             }, timer);
-
-//     } catch (error) {
-//         return res.status(500).json({
-//             message:error.message
-//         })
-//     }
-
-
-// }
-
-exports.newTask=async(req,res)=>{
-    try {
-        const newTask = await editorModel.findById(req.params.id)
-        const Task= await taskModel.create(req.body)
-        Task.editor =newTask
-        Task.save()
-        newTask.push(Task)
-        return res.status(200).json({
-            message:"created",
-            data:Task
-        })
-        
+        await getEditor.save()
+        await getWriter.save()
+        await createdTask.save()
+        res.status(201).json({
+            message: "Task has been created by the editor and it has been  assigned to the writer",
+            data: createdTask
+        });
     } catch (error) {
         res.status(500).json({
-            message:error.message
-        })
+            message: error.message
+        });
     }
 }
-exports.getAllTasks= async(req,res)=>{
-    try {
-        const checkAvailableTasks= await taskModel.find()
-    if(!checkAvailableTasks){
-        return res.status(404).json({
-            message:"there are no available tasks"
-        })
-    }else{
-        const allTasks= await taskModel.find()
-        return res.status(200).json({
-            message:"here are all tasks",
-            data:allTasks
-        })
-    }
-        
+
+ exports.acceptTask = async (req, res) => {
+  try {
+      const taskId = req.params.taskId
+   const task = await taskModel.findById(taskId)
+   if (!task) {
+    return res.status(404).json({
+        message: "Task not found"
+      })
+     }
+     const subject ="KINDLY ACCEPT THIS TASK"
+     const link =`${req.protocol}: //${req.get("host")}/acceptTask`
+     const text =`click on this link${link} to accept your task`
+     sendEmail(
+         {
+             from:"gmail",
+             email:taskId.Email,
+             subject:`kindly accept`,
+             text:link
+         }
+     )
+     
+     task.isActive = true
+     await task.save()
+
+     setTimeout(() => {
+         if (task.isActive) {
+             task.isActive = false
+             task.isPending = true
+             task.save();
+         }
+         if(task.isComplete){
+             task.isActive = false
+             task.isPending = false
+             task.save()
+         }
+     }, task.timer)
+     res.status(200).json({
+         message: "Task accepted successfully",
+         data: task
+     })
+
     } catch (error) {
         res.status(500).json({
-            message:error.message
+            message: error.message
         })
     }
 }
+
 exports.getOneTask = async(req,res)=>{
     try {
-        const id = req.params.id
         const taskid=req.params.id
-        const findeditor =await editorModel.findById(id)
         const task = await taskModel.findById(taskid)
         if(!findeditor){
             return res.status(400).json({
-                message:"no editor found"
+                message:`task with id ${taskid} not found`
             })
         }else{
             return res.status(200).json({
@@ -126,51 +115,63 @@ exports.getOneTask = async(req,res)=>{
     }
 }
 
-exports.updateTask= async(req,res)=>{
-    try {
-        const editorId = req.params.id
-        const taskId =req.params.taskId
-        const geteditor = await editorModel.findById(editorId)
-        const updateTask = await taskModel.findByIdAndUpdate(taskId,(req.body),{new:true})
-        if(!geteditor){
+exports.updateTask = async (req, res) => {
+    try{
+        const writerId = req.params.writerId;
+        const writer = await writerModel.findById(writerId)
+        if(!writer) {
             return res.status(404).json({
-                message:"cannot find the editor with this id"
-            })
-        }else if(updateTask ==0){
-            const message ="you didnt update anything"
-            return res.status(200).json({
-                message:"task updated successfully",
-                data:updateTask,
-                message:message
+                message: `writer with id ${writerId} not found`
             })
         }
-    }catch(error){
-        return res.status(500).json({
-            message:error.message
+        const taskId = req.params.taskId
+        const task = await taskModel.findById(taskId)
+        if(!task) {
+            return res.status(404).json({
+                message: `task with id ${taskId} not found`
+            })
+        }
+        task.isComplete = true;
+        await task.save()
+       return res.status(200).json({
+            message: "updated successfully",
+            data: task
         })
 
-    }
+    }catch(error){
+        return  res.status(500).json({
+          message: error.message
+        })
+      }
 }
-exports.deleteTask =async(req,res)=>{
-    try {
-        const editorId = req.params.id
-        const taskId =req.params.taskId
-        const geteditor = await editorModel.findById(editorId)
-        const deleteTask = await taskModel.findByIdAndDelete(taskId,(req.body))
-        if(!deleteTask){
-            return res.status(400).json({
-                message:"cannot delete this task"
+    
+exports.deleteTask = async (req, res) => {
+    try{
+        const writerId = req.params.writerId;
+        const writer = await writerModel.findById(writerId)
+        if(!writer) {
+            return res.status(404).json({
+                message: `writer with id ${writerId} not found`
+            })
+        }
+        const taskId = req.params.taskId
+        const task = await taskModel.findByIdAndDelete(taskId)
+        if(!task) {
+            return res.status(404).json({
+                message: `task with id ${taskId} not found`
             })
         }else{
+            await task.save()
             return res.status(200).json({
-                message:"task deleted successfully",
-                data:deleteTask
-            })
-        }  
-    } catch (error) {
-        return res.status(500).json({
-            message:error.message
+                 message: "deleted successfully",
+                 data: task
+             })
+        }
+    }catch(error){
+        return  res.status(500).json({
+          message: error.message
         })
-
-    }
+      }
 }
+    
+
