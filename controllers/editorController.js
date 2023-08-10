@@ -5,9 +5,9 @@ const editorModel = require("../models/editorModel");
 const bcrypt = require("bcrypt");
 const jwt = require('jsonwebtoken');
 const nodemailer = require('nodemailer');
-// const cloudinary = require('../utils/cloudinary');
-// const validator = require('../middleware/editorValidation');
-// const { default: isEmail } = require("validator/lib/isEmail");
+const cloudinary = require('../utils/cloudinary');
+const validator = require('../middleware/editorValidation');
+const { default: isEmail } = require("validator/lib/isEmail");
 
 
 // create a mailing function
@@ -29,7 +29,7 @@ const signup = async(req,res)=>{
           Surname,
           // profilePic:req.file.path
       }
-      if(!UserName||!Email||!Password||CompanyName||!FirstName||!Surname){
+      if(UserName==0||Email==0||Password==0||CompanyName==0||FirstName==0||Surname==0){
           return "field cant be empty"
       }else{
         const createUser =await new editorModel(data)
@@ -72,38 +72,23 @@ const signup = async(req,res)=>{
 
 const userLogin = async (req, res) => {
   try {
-    // Extract the username and password from the request body
     const { UserName, Password } = req.body;
+    const editor = await editorModel.findOne({ UserName })
 
-    // Find the editor by their username
-    const editor = await editorModel.findOne({ UserName });
-
-    // Check if the editor exists
     if (!editor) {
       return res.status(404).json({
         message: `Username is not found`,
-      });
+      })
     }
 
-    // Compare the inputted password with the existing one using bcrypt.compare
-    const checkPassword = bcrypt.compareSync(Password, editor.Password);
-
-    // Check for password match
+    const checkPassword = bcrypt.compareSync(Password, editor.Password)
     if (!checkPassword) {
       return res.status(400).json({
         message: `Login Unsuccessful`,
         failed: `Invalid PASSWORD`,
-      });
+      })
     }
     
-    // // Check if user is verified
-    // if (!editor.isVerified) {
-    //   return res.status(404).json({
-    //       message: `User with ${editor.Email} is not verified`,
-    //   });
-    // }
-
-    // Generate a JWT token with the editor's ID and other information
     const token = jwt.sign(
       {
         id: editor._id,
@@ -112,53 +97,69 @@ const userLogin = async (req, res) => {
       },
       process.env.secretKey,
       { expiresIn: "1d" }
-    );
+    )
 
-    // Save the token to the editor's document
     editor.token = token;
     await editor.save();
-
-    // Return success response with token and editor's data
-    res.status(200).json({
+   return res.status(200).json({
       message: `User logged in successfully`,
       data: {
         editorId: editor._id,
         UserName: editor.UserName,
         token: editor.token,
       },
-    });
+    })
   } catch (error) {
     // Handle any errors that occur during the process
-    res.status(500).json({
+     return  res.status(500).json({
       message: error.message,
-    });
+    })
   }
 };
 
   
-//   editor sign out
-  const signOut = async (req, res) => {
-    try {
-        const id = req.params.id
-        
-        // update the user's token to null
-        const editor = await editorModel.findByIdAndUpdate(id, {token: null}, {new: true})
-        console.log(editor)
-        if (!editor){
-            return res.status(404).json({
-                message: `Editor not found`
-            })
-        }
-        res.status(200).json({
-            message: `Editor logged out successfully`
-        })
-    }catch(e){
-        res.status(500).json({
-            error: e.message
-        })
-    }
-};
 
+//   const signOut = async (req, res) => {
+//     try {
+//         const id = req.params.id
+        
+//         // update the user's token to null
+//         const editor = await editorModel.findByIdAndUpdate(id, {token: null}, {new: true})
+//         console.log(editor)
+//         if (!editor){
+//             return res.status(404).json({
+//                 message: `Editor not found`
+//             })
+//         }
+//         res.status(200).json({
+//             message: `Editor logged out successfully`
+//         })
+//     }catch(e){
+//         res.status(500).json({
+//             error: e.message
+//         })
+//     }
+// };
+exports.signOut =async(req,res)=>{
+  try {
+      const user =await editorModel.findById(req.users._id)
+      const bin =[]
+      const hasAuth = req.headers.authorization
+      const token =hasAuth.split(" ")[1]
+      bin.push(token)
+      await user.save()
+      return res.status(201).json({
+          message:"this editor has been logged out successfully"
+      })
+      
+  } catch (error) {
+      return res.status(500).json({
+          message:error.message
+      })
+      
+  }
+
+}
 
 // Forgot Password
 const forgotPassword = async (req, res) => {

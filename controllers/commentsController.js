@@ -5,7 +5,7 @@ exports.newComment = async (req, res)=>{
     try {
         const comments= await commentModel.findById(req.params.id,{new:true})
         const commentReference = await writerModel.create(req.body)
-        comments.link = comments
+        comments.writer = comments
         commentReference.save()
         comments.save()
         res.status(200).json({
