@@ -8,6 +8,7 @@ const nodemailer = require('nodemailer');
 const cloudinary = require('../utils/cloudinary');
 const validator = require('../middleware/editorValidation');
 const { default: isEmail } = require("validator/lib/isEmail");
+const sendEmail=require("./email")
 
 
 // create a mailing function
@@ -38,12 +39,12 @@ const signup = async(req,res)=>{
         const newToken = jwt.sign({
             UserName,
             Password
-        },process.env.JWT_TOKEN,{expiresIn: "1d"})
+        },process.env.secretKey,{expiresIn: "1d"})
         createUser.token = newToken
         const subject ="KINDLY VERIFY BRO"
         const link =`${req.protocol}: //${req.get("host")}/userverify${createUser._id}/${newToken}`
         const text =`click on this link${link} to verify, kindly note that this link will expire after 5 minutes`
-        mailsender(
+        sendEmail(
             {
                 from:"gmail",
                 email:createUser.Email,
@@ -140,7 +141,7 @@ const userLogin = async (req, res) => {
 //         })
 //     }
 // };
-exports.signOut =async(req,res)=>{
+const signOut =async(req,res)=>{
   try {
       const user =await editorModel.findById(req.users._id)
       const bin =[]

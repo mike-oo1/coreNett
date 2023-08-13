@@ -61,7 +61,7 @@ const {sendEmail}=require("./email")
      sendEmail(
          {
              from:"gmail",
-             email:taskId.Email,
+             email:task.Email,
              subject:`kindly accept`,
              text:link
          }
